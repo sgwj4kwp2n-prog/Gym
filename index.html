@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0E17">
+<title>FitLog</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0A0E17; --card: #1A1F2E; --card2: #232938;
+    --accent: #00E676; --accent2: #FF6B35;
+    --text: #FFFFFF; --muted: #8A93A6; --danger: #FF4D5E;
+    --light-bg: #F2F4F8; --light-card: #FFFFFF; --light-text: #1A1F2E; --light-muted: #6B7280;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding-bottom: 90px; overflow-x: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.light { background: var(--light-bg); color: var(--light-text); }
+  body.light .card, body.light .workout-card, body.light .program-card,
+  body.light .stat-card, body.light .history-item, body.light .set-row,
+  body.light .field input, body.light .field textarea, body.light .field select,
+  body.light .add-ex-search, body.light .picker-item, body.light .segmented,
+  body.light .sheet, body.light .info-card { background: var(--light-card); color: var(--light-text); }
+  body.light .sheet { background: var(--light-bg); }
+  body.light .tabbar { background: rgba(255,255,255,0.95); border-top-color: rgba(0,0,0,0.08); }
+  body.light .header { background: var(--light-bg); }
+  body.light .card-sub, body.light .program-meta, body.light .history-date,
+  body.light .field label, body.light .stat-label, body.light .info-card-desc { color: var(--light-muted); }
+  body.light .overlay { background: rgba(0,0,0,0.4); }
+
+  .header {
+    padding: 20px 20px 12px; display: flex; justify-content: space-between;
+    align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 10;
+  }
+  .header h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .add-btn {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--accent);
+    color: #000; border: none; font-size: 26px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,230,118,0.35);
+  }
+  .add-btn:active { transform: scale(0.92); }
+  .chips { display: flex; gap: 10px; padding: 4px 20px 16px; overflow-x: auto; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    padding: 9px 18px; border-radius: 20px; background: var(--card);
+    color: var(--muted); font-size: 14px; font-weight: 600;
+    white-space: nowrap; border: none; cursor: pointer; transition: all 0.2s;
+  }
+  .chip.active { background: var(--accent); color: #000; }
+  body.light .chip { background: var(--light-card); color: var(--light-muted); }
+  body.light .chip.active { background: var(--accent); color: #000; }
+  .list { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--card); border-radius: 18px; padding: 16px;
+    display: flex; align-items: center; gap: 14px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .card:active { background: var(--card2); }
+  .card-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: rgba(0,230,118,0.12); display: flex; align-items: center;
+    justify-content: center; font-size: 24px; flex-shrink: 0;
+  }
+  .card-icon.cardio { background: rgba(255,107,53,0.12); }
+  .card-body { flex: 1; min-width: 0; }
+  .card-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+    background: rgba(255,107,53,0.2); color: var(--accent2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge.program { background: rgba(0,230,118,0.2); color: var(--accent); }
+  .card-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .chevron { color: var(--muted); font-size: 20px; }
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; font-size: 15px; }
+  .tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(26,31,46,0.95); backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06); display: flex;
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); z-index: 20;
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--muted); font-size: 10px;
+    font-weight: 600; cursor: pointer; padding: 6px 0;
+  }
+  .tab.active { color: var(--accent); }
+  .tab .ico { font-size: 22px; }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 30;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg);
+    border-radius: 24px 24px 0 0; z-index: 40; transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+    max-height: 92vh; display: flex; flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .sheet.show { transform: translateY(0); }
+  .sheet-handle { width: 40px; height: 5px; background: rgba(255,255,255,0.2); border-radius: 3px; margin: 10px auto 6px; }
+  body.light .sheet-handle { background: rgba(0,0,0,0.15); }
+  .sheet-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  body.light .sheet-header { border-bottom-color: rgba(0,0,0,0.08); }
+  .sheet-title { font-size: 20px; font-weight: 700; }
+  .sheet-close { background: var(--card); color: var(--text); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; cursor: pointer; }
+  body.light .sheet-close { background: var(--light-card); color: var(--light-text); }
+  .sheet-content { overflow-y: auto; padding: 20px; flex: 1; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field textarea, .field select {
+    width: 100%; padding: 14px 16px; background: var(--card);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+    color: var(--text); font-size: 16px; font-family: inherit;
+    outline: none; transition: border 0.2s; -webkit-appearance: none;
+  }
+  body.light .field input, body.light .field textarea, body.light .field select { border-color: rgba(0,0,0,0.08); }
+  .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field input::placeholder, .field textarea::placeholder { color: #5A6274; }
+  .segmented { display: flex; background: var(--card); border-radius: 12px; padding: 4px; gap: 4px; }
+  .segmented button { flex: 1; padding: 10px; background: none; border: none; color: var(--muted); font-size: 13px; font-weight: 600; border-radius: 9px; cursor: pointer; transition: all 0.2s; }
+  .segmented button.active { background: var(--accent); color: #000; }
+  .icons-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  .icon-opt { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: var(--card); border-radius: 12px; font-size: 22px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+  .icon-opt.selected { border-color: var(--accent); background: rgba(0,230,118,0.12); }
+  .btn-primary { width: 100%; padding: 16px; background: var(--accent); color: #000; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 8px; transition: transform 0.15s; }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary:disabled { opacity: 0.4; }
+  .btn-secondary { width: 100%; padding: 14px; background: var(--card); color: var(--text); border: none; border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+  body.light .btn-secondary { background: var(--light-card); color: var(--light-text); }
+  
+  /* ИСПРАВЛЕНО: поля ввода подходов */
+  .set-input-row {
+    display: flex; gap: 8px; margin-top: 10px; align-items: stretch;
+  }
+  .set-input-row input {
+    flex: 1; min-width: 0; padding: 12px; background: var(--card2);
+    border: none; border-radius: 10px; color: var(--text);
+    font-size: 15px; outline: none;
+  }
+  .set-input-row button {
+    width: 48px; flex-shrink: 0; padding: 12px 0; margin: 0;
+  }
+  
+  .set-row { display: flex; gap: 10px; align-items: center; background: var(--card); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+  .set-num { width: 28px; height: 28px; background: rgba(0,230,118,0.12); color: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .set-field { flex: 1; }
+  .set-field label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 2px; }
+  .set-field input { background: transparent; border: none; color: var(--text); font-size: 18px; font-weight: 600; width: 100%; outline: none; font-family: inherit; }
+  body.light .set-field input { color: var(--light-text); }
+  .set-del { background: rgba(255,77,94,0.12); color: var(--danger); border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; flex-shrink: 0; }
+  .history-item { background: var(--card); border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .history-date { font-size: 12px; color: var(--muted); }
+  .history-value { font-size: 16px; font-weight: 600; }
+  .history-cardio { font-size: 14px; }
+  .stat-card { background: linear-gradient(135deg, var(--card), var(--card2)); border-radius: 18px; padding: 18px; margin-bottom: 12px; }
+  body.light .stat-card { background: var(--light-card); }
+  .stat-label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 800; color: var(--accent); }
+  .toast {
+    position: fixed; bottom: 100px; left: 50%;
+    transform: translateX(-50%) translateY(20px); background: var(--accent);
+    color: #000; padding: 12px 24px; border-radius: 30px; font-weight: 700;
+    font-size: 14px; opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 100;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .workout-card { background: linear-gradient(135deg, var(--card), var(--card2)); border-radius: 18px; padding: 16px; margin-bottom: 12px; cursor: pointer; border-left: 4px solid var(--accent); }
+  body.light .workout-card { background: var(--light-card); }
+  .workout-card:active { opacity: 0.8; }
+  .workout-date { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .workout-meta { font-size: 13px; color: var(--muted); }
+  .workout-ex-list { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .workout-ex-tag { font-size: 12px; padding: 4px 10px; border-radius: 12px; background: rgba(0,230,118,0.1); color: var(--accent); }
+  .date-input { color-scheme: dark; }
+  body.light .date-input { color-scheme: light; }
+  .picker-list { max-height: 300px; overflow-y: auto; }
+  .picker-item { padding: 14px 16px; background: var(--card); border-radius: 12px; margin-bottom: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+  .picker-item:active { background: var(--card2); }
+  .picker-item.selected { border: 2px solid var(--accent); }
+  .add-ex-search { width: 100%; padding: 12px 16px; background: var(--card); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; color: var(--text); font-size: 15px; margin-bottom: 12px; outline: none; }
+  body.light .add-ex-search { border-color: rgba(0,0,0,0.08); color: var(--light-text); }
+  .program-card { background: linear-gradient(135deg, var(--card), var(--card2)); border-radius: 18px; padding: 16px; margin-bottom: 12px; cursor: pointer; border-left: 4px solid var(--accent2); }
+  body.light .program-card { background: var(--light-card); }
+  .program-card:active { opacity: 0.8; }
+  .program-card.builtin { border-left-color: var(--accent); }
+  .program-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .program-meta { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .program-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .program-actions button { flex: 1; padding: 10px; border-radius: 12px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .program-start { background: var(--accent); color: #000; }
+  .program-edit { background: var(--card2); color: var(--text); }
+  body.light .program-edit { background: var(--light-bg); color: var(--light-text); }
+  .timer-display { font-size: 48px; font-weight: 800; text-align: center; color: var(--accent); margin: 20px 0; font-variant-numeric: tabular-nums; }
+  .timer-btns { display: flex; gap: 10px; }
+  .timer-btns button { flex: 1; padding: 14px; border-radius: 14px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .timer-start { background: var(--accent); color: #000; }
+  .timer-reset { background: var(--card); color: var(--text); }
+  body.light .timer-reset { background: var(--light-card); color: var(--light-text); }
+
+  .info-section { margin-bottom: 24px; }
+  .info-section h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .info-card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+  .info-card-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .info-card-desc { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 10px; }
+  .info-steps { font-size: 14px; line-height: 1.7; color: var(--text); }
+  body.light .info-steps { color: var(--light-text); }
+  .info-steps li { margin-bottom: 6px; margin-left: 18px; }
+  .info-tip { background: rgba(0,230,118,0.1); border-radius: 12px; padding: 10px 14px; font-size: 13px; color: var(--accent); margin-top: 10px; }
+
+  .anatomy-wrap { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; }
+  .anatomy-svg { width: 48%; max-width: 170px; }
+  .anatomy-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .anatomy-legend-item { font-size: 12px; padding: 6px 10px; border-radius: 10px; background: var(--card); display: flex; align-items: center; gap: 6px; }
+  .anatomy-legend-color { width: 12px; height: 12px; border-radius: 3px; }
+  .muscle-label { fill: var(--muted); font-size: 7px; font-weight: 600; }
+
+  .chart-container { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+  body.light .chart-container { background: var(--light-card); }
+  .chart-svg { width: 100%; height: 160px; }
+  .chart-label { font-size: 10px; fill: var(--muted); }
+  .chart-line { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+  .chart-area { fill: rgba(0,230,118,0.1); }
+  .chart-dot { fill: var(--accent); }
+  .chart-grid { stroke: rgba(255,255,255,0.06); stroke-width: 1; }
+  body.light .chart-grid { stroke: rgba(0,0,0,0.06); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="pageTitle">Тренировки</h1>
+  <button class="add-btn" id="addBtn">+</button>
+</div>
+
+<div class="chips" id="chips"></div>
+<div class="list" id="list"></div>
+
+<div class="tabbar">
+  <button class="tab active" data-tab="workouts"><span class="ico">📅</span><span>Тренировки</span></button>
+  <button class="tab" data-tab="programs"><span class="ico">📋</span><span>Программы</span></button>
+  <button class="tab" data-tab="exercises"><span class="ico">🏋️</span><span>Упражнения</span></button>
+  <button class="tab" data-tab="history"><span class="ico">📊</span><span>История</span></button>
+  <button class="tab" data-tab="info"><span class="ico">💡</span><span>Инфо</span></button>
+</div>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="sheet" id="sheetAddExercise">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title">Новое упражнение</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content">
+    <div class="field"><label>Название</label><input type="text" id="exName" placeholder="Например: Жим гантелей сидя"></div>
+    <div class="field"><label>Категория</label><div class="segmented" id="exCategory"><button data-val="free" class="active">Свободные</button><button data-val="machine">Тренажёры</button><button data-val="cardio">Кардио</button></div></div>
+    <div class="field" id="muscleField"><label>Группа мышц</label><div class="segmented" id="exMuscle" style="flex-wrap: wrap;"><button data-val="Грудь" class="active">Грудь</button><button data-val="Спина">Спина</button><button data-val="Ноги">Ноги</button><button data-val="Плечи">Плечи</button><button data-val="Руки">Руки</button><button data-val="Пресс">Пресс</button></div></div>
+    <div class="field"><label>Иконка</label><div class="icons-grid" id="exIcons"></div></div>
+    <div class="field"><label>Заметки (необязательно)</label><textarea id="exNotes" placeholder="Техника, советы..."></textarea></div>
+    <button class="btn-primary" id="saveExercise" disabled>Сохранить</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetDetail">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title" id="detailTitle">Упражнение</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content" id="detailContent"></div>
+</div>
+
+<div class="sheet" id="sheetEditExercise">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title">Редактировать упражнение</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content">
+    <div class="field"><label>Название</label><input type="text" id="editExName"></div>
+    <div class="field"><label>Заметки</label><textarea id="editExNotes"></textarea></div>
+    <button class="btn-primary" id="saveEditedExercise">Сохранить</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetAddWorkout">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title">Новая тренировка</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content">
+    <div class="field"><label>Дата тренировки</label><input type="date" id="workoutDate" class="date-input"></div>
+    <div class="field"><label>Название (необязательно)</label><input type="text" id="workoutName" placeholder="Например: День ног"></div>
+    <div class="field"><label>Программа (необязательно)</label><select id="workoutProgram"><option value="">— Без программы —</option></select></div>
+    <button class="btn-primary" id="createWorkout">Создать тренировку</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetWorkout">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title" id="workoutTitle">Тренировка</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content" id="workoutContent"></div>
+</div>
+
+<div class="sheet" id="sheetPickExercise">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title">Выберите упражнение</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content">
+    <input type="text" class="add-ex-search" id="pickSearch" placeholder="Поиск...">
+    <div class="chips" id="pickChips" style="padding:0 0 14px"></div>
+    <div class="picker-list" id="pickList"></div>
+    <button class="btn-secondary" id="createExFromPick">+ Создать новое упражнение</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetAddProgram">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title">Новая программа</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content">
+    <div class="field"><label>Название программы</label><input type="text" id="programName" placeholder="Например: День ног"></div>
+    <div class="field"><label>Описание (необязательно)</label><textarea id="programDesc" placeholder="Например: Тяжёлый день, базовые упражнения"></textarea></div>
+    <div class="field"><label>Иконка</label><div class="icons-grid" id="programIcons"></div></div>
+    <button class="btn-primary" id="saveProgram" disabled>Создать программу</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheetProgram">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title" id="programTitle">Программа</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content" id="programContent"></div>
+</div>
+
+<div class="sheet" id="sheetTimer">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header"><div class="sheet-title">Таймер отдыха</div><button class="sheet-close" data-close>✕</button></div>
+  <div class="sheet-content">
+    <div class="timer-display" id="timerDisplay">01:30</div>
+    <div class="segmented" id="timerPresets" style="margin-bottom:16px">
+      <button data-sec="60">1 мин</button><button data-sec="90" class="active">1:30</button><button data-sec="120">2 мин</button><button data-sec="180">3 мин</button>
+    </div>
+    <div class="timer-btns"><button class="timer-start" id="timerStart">Старт</button><button class="timer-reset" id="timerReset">Сброс</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'fitlog_data_v6';
+
+const DEFAULT_EXERCISES = [
+  { id: 'fw1', name: 'Жим штанги лёжа', category: 'free', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'fw9', name: 'Разведения гантелей лёжа', category: 'free', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'fw11', name: 'Жим гантелей лёжа', category: 'free', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'fw12', name: 'Жим штанги на наклонной', category: 'free', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'fw13', name: 'Пуловер с гантелью', category: 'free', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'fw3', name: 'Становая тяга', category: 'free', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'fw5', name: 'Тяга штанги в наклоне', category: 'free', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'fw14', name: 'Тяга гантели одной рукой', category: 'free', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'fw15', name: 'Гиперэкстензия', category: 'free', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'fw16', name: 'Подтягивания', category: 'free', muscle: 'Спина', icon: '💪', custom: false },
+  { id: 'fw17', name: 'Тяга Т-грифа', category: 'free', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'fw2', name: 'Приседания со штангой', category: 'free', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'fw6', name: 'Выпады с гантелями', category: 'free', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'fw18', name: 'Румынская тяга', category: 'free', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'fw19', name: 'Болгарский присед', category: 'free', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'fw20', name: 'Приседания с гантелью (гоблет)', category: 'free', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'fw4', name: 'Жим стоя', category: 'free', muscle: 'Плечи', icon: '💪', custom: false },
+  { id: 'fw10', name: 'Шраги с гантелями', category: 'free', muscle: 'Плечи', icon: '💪', custom: false },
+  { id: 'fw21', name: 'Махи гантелями в стороны', category: 'free', muscle: 'Плечи', icon: '💪', custom: false },
+  { id: 'fw22', name: 'Махи гантелями в наклоне', category: 'free', muscle: 'Плечи', icon: '💪', custom: false },
+  { id: 'fw23', name: 'Жим Арнольда', category: 'free', muscle: 'Плечи', icon: '💪', custom: false },
+  { id: 'fw7', name: 'Подъём на бицепс', category: 'free', muscle: 'Руки', icon: '💪', custom: false },
+  { id: 'fw8', name: 'Французский жим', category: 'free', muscle: 'Руки', icon: '💪', custom: false },
+  { id: 'fw24', name: 'Молотки', category: 'free', muscle: 'Руки', icon: '💪', custom: false },
+  { id: 'fw25', name: 'Концентрированный подъём', category: 'free', muscle: 'Руки', icon: '💪', custom: false },
+  { id: 'fw26', name: 'Разгибание с гантелью из-за головы', category: 'free', muscle: 'Руки', icon: '💪', custom: false },
+  { id: 'fw27', name: 'Скручивания', category: 'free', muscle: 'Пресс', icon: '🧘', custom: false },
+  { id: 'fw28', name: 'Планка', category: 'free', muscle: 'Пресс', icon: '🧘', custom: false },
+  { id: 'fw29', name: 'Подъём ног в висе', category: 'free', muscle: 'Пресс', icon: '🧘', custom: false },
+  { id: 'fw30', name: 'Русский твист', category: 'free', muscle: 'Пресс', icon: '🧘', custom: false },
+  { id: 'mc4', name: 'Кроссовер', category: 'machine', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'mc7', name: 'Бабочка (Peck-Deck)', category: 'machine', muscle: 'Грудь', icon: '🦋', custom: false },
+  { id: 'mc8', name: 'Смит-машина', category: 'machine', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'mc11', name: 'Жим в тренажёре (грудь)', category: 'machine', muscle: 'Грудь', icon: '🏋️', custom: false },
+  { id: 'mc5', name: 'Тяга верхнего блока', category: 'machine', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'mc6', name: 'Тяга нижнего блока', category: 'machine', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'mc12', name: 'Тяга в тренажёре (спина)', category: 'machine', muscle: 'Спина', icon: '🏋️', custom: false },
+  { id: 'mc1', name: 'Жим ногами', category: 'machine', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'mc2', name: 'Разгибание ног', category: 'machine', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'mc3', name: 'Сгибание ног', category: 'machine', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'mc9', name: 'Гакк-приседания', category: 'machine', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'mc13', name: 'Икры в тренажёре', category: 'machine', muscle: 'Ноги', icon: '🦵', custom: false },
+  { id: 'mc14', name: 'Махи в тренажёре (плечи)', category: 'machine', muscle: 'Плечи', icon: '💪', custom: false },
+  { id: 'mc10', name: 'Трицепс на блоке', category: 'machine', muscle: 'Руки', icon: '💪', custom: false },
+  { id: 'mc15', name: 'Бицепс в тренажёре', category: 'machine', muscle: 'Руки', icon: '💪', custom: false },
+  { id: 'mc16', name: 'Пресс в тренажёре', category: 'machine', muscle: 'Пресс', icon: '🧘', custom: false },
+  { id: 'cd1', name: 'Беговая дорожка', category: 'cardio', muscle: 'Всё тело', icon: '🏃', custom: false },
+  { id: 'cd2', name: 'Эллипс', category: 'cardio', muscle: 'Всё тело', icon: '🏃', custom: false },
+  { id: 'cd3', name: 'Велотренажёр', category: 'cardio', muscle: 'Всё тело', icon: '🚴', custom: false },
+  { id: 'cd4', name: 'Гребной тренажёр', category: 'cardio', muscle: 'Всё тело', icon: '🚣', custom: false },
+  { id: 'cd5', name: 'Скакалка', category: 'cardio', muscle: 'Всё тело', icon: '🤸', custom: false },
+  { id: 'cd6', name: 'Степпер', category: 'cardio', muscle: 'Всё тело', icon: '🪜', custom: false },
+  { id: 'cd7', name: 'HIIT', category: 'cardio', muscle: 'Всё тело', icon: '🔥', custom: false },
+];
+
+const BUILTIN_PROGRAMS = [
+  { id: 'bp_chest_tri', name: 'Грудь + Трицепс', desc: 'Классический день груди и трицепса', icon: '💪', builtin: true, exercises: [{ exerciseId: 'fw1' },{ exerciseId: 'fw9' },{ exerciseId: 'mc4' },{ exerciseId: 'mc7' },{ exerciseId: 'fw8' },{ exerciseId: 'mc10' }] },
+  { id: 'bp_back_bi', name: 'Спина + Бицепс', desc: 'Тяговые упражнения + бицепс', icon: '🦾', builtin: true, exercises: [{ exerciseId: 'fw3' },{ exerciseId: 'fw5' },{ exerciseId: 'mc5' },{ exerciseId: 'mc6' },{ exerciseId: 'fw7' }] },
+  { id: 'bp_legs_shoulders', name: 'Ноги + Плечи', desc: 'База на ноги и плечи', icon: '🦵', builtin: true, exercises: [{ exerciseId: 'fw2' },{ exerciseId: 'mc1' },{ exerciseId: 'fw6' },{ exerciseId: 'mc2' },{ exerciseId: 'mc3' },{ exerciseId: 'fw4' },{ exerciseId: 'fw10' }] },
+  { id: 'bp_push', name: 'Push (Жимовой день)', desc: 'Грудь, плечи, трицепс — всё жимовое', icon: '🏋️', builtin: true, exercises: [{ exerciseId: 'fw1' },{ exerciseId: 'fw4' },{ exerciseId: 'fw9' },{ exerciseId: 'mc4' },{ exerciseId: 'fw8' },{ exerciseId: 'mc10' }] },
+  { id: 'bp_pull', name: 'Pull (Тяговый день)', desc: 'Спина и бицепс — все тяги', icon: '🦾', builtin: true, exercises: [{ exerciseId: 'fw3' },{ exerciseId: 'fw5' },{ exerciseId: 'mc5' },{ exerciseId: 'mc6' },{ exerciseId: 'fw7' },{ exerciseId: 'fw10' }] },
+  { id: 'bp_fullbody', name: 'Full Body (Фулбоди)', desc: 'Всё тело за одну тренировку', icon: '🔥', builtin: true, exercises: [{ exerciseId: 'fw2' },{ exerciseId: 'fw1' },{ exerciseId: 'fw3' },{ exerciseId: 'fw4' },{ exerciseId: 'fw5' },{ exerciseId: 'fw7' },{ exerciseId: 'mc10' }] },
+];
+
+const ANATOMY_FRONT = `
+<svg viewBox="0 0 100 180" class="anatomy-svg" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="20" r="12" fill="#2A3042"/>
+  <rect x="42" y="32" width="16" height="8" fill="#2A3042"/>
+  <path d="M35 42 Q50 38 65 42 L68 75 L32 75 Z" fill="#00E676" opacity="0.8"/>
+  <text x="50" y="60" text-anchor="middle" class="muscle-label" fill="#0A0E17">Грудь</text>
+  <path d="M28 45 L35 42 L38 70 L30 72 Z" fill="#FF6B35" opacity="0.8"/>
+  <path d="M72 45 L65 42 L62 70 L70 72 Z" fill="#FF6B35" opacity="0.8"/>
+  <text x="20" y="60" text-anchor="middle" class="muscle-label">Плечи</text>
+  <text x="80" y="60" text-anchor="middle" class="muscle-label">Плечи</text>
+  <rect x="45" y="76" width="10" height="35" fill="#FFB74D" opacity="0.8" rx="3"/>
+  <text x="50" y="95" text-anchor="middle" class="muscle-label" fill="#0A0E17">Пресс</text>
+  <path d="M38 78 L42 76 L42 100 L38 102 Z" fill="#4FC3F7" opacity="0.7"/>
+  <path d="M62 78 L58 76 L58 100 L62 102 Z" fill="#4FC3F7" opacity="0.7"/>
+  <text x="15" y="90" text-anchor="middle" class="muscle-label">Косые</text>
+  <text x="85" y="90" text-anchor="middle" class="muscle-label">Косые</text>
+  <path d="M38 102 L44 102 L44 140 L36 140 Z" fill="#BA68C8" opacity="0.8"/>
+  <path d="M62 102 L56 102 L56 140 L64 140 Z" fill="#BA68C8" opacity="0.8"/>
+  <text x="20" y="125" text-anchor="middle" class="muscle-label">Квадрицепс</text>
+  <text x="80" y="125" text-anchor="middle" class="muscle-label">Квадрицепс</text>
+  <rect x="40" y="140" width="8" height="35" fill="#81C784" opacity="0.7" rx="2"/>
+  <rect x="52" y="140" width="8" height="35" fill="#81C784" opacity="0.7" rx="2"/>
+  <text x="50" y="175" text-anchor="middle" class="muscle-label">Голени</text>
+  <text x="50" y="12" text-anchor="middle" class="muscle-label">ПЕРЕД</text>
+</svg>`;
+
+const ANATOMY_BACK = `
+<svg viewBox="0 0 100 180" class="anatomy-svg" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="50" cy="20" r="12" fill="#2A3042"/>
+  <rect x="42" y="32" width="16" height="8" fill="#2A3042"/>
+  <path d="M35 42 Q50 38 65 42 L70 80 L30 80 Z" fill="#4FC3F7" opacity="0.8"/>
+  <text x="50" y="60" text-anchor="middle" class="muscle-label" fill="#0A0E17">Широчайшие</text>
+  <text x="50" y="72" text-anchor="middle" class="muscle-label" fill="#0A0E17">/ Трапеция</text>
+  <path d="M38 80 L44 80 L44 105 L36 105 Z" fill="#BA68C8" opacity="0.8"/>
+  <path d="M62 80 L56 80 L56 105 L64 105 Z" fill="#BA68C8" opacity="0.8"/>
+  <text x="20" y="95" text-anchor="middle" class="muscle-label">Ягодицы</text>
+  <text x="80" y="95" text-anchor="middle" class="muscle-label">Ягодицы</text>
+  <path d="M38 105 L44 105 L44 145 L36 145 Z" fill="#FFB74D" opacity="0.8"/>
+  <path d="M62 105 L56 105 L56 145 L64 145 Z" fill="#FFB74D" opacity="0.8"/>
+  <text x="20" y="130" text-anchor="middle" class="muscle-label">Бицепс бедра</text>
+  <text x="80" y="130" text-anchor="middle" class="muscle-label">Бицепс бедра</text>
+  <rect x="40" y="145" width="8" height="30" fill="#81C784" opacity="0.7" rx="2"/>
+  <rect x="52" y="145" width="8" height="30" fill="#81C784" opacity="0.7" rx="2"/>
+  <text x="50" y="175" text-anchor="middle" class="muscle-label">Голени</text>
+  <text x="50" y="12" text-anchor="middle" class="muscle-label">СЗАДИ</text>
+</svg>`;
+
+const MUSCLE_LEGEND = [
+  { name: 'Грудь', color: '#00E676', desc: 'Большая грудная мышца' },
+  { name: 'Плечи', color: '#FF6B35', desc: 'Дельтовидные (передняя/средняя/задняя)' },
+  { name: 'Пресс', color: '#FFB74D', desc: 'Прямая мышца живота' },
+  { name: 'Косые', color: '#4FC3F7', desc: 'Косые мышцы живота' },
+  { name: 'Спина', color: '#4FC3F7', desc: 'Широчайшие, трапеция' },
+  { name: 'Ноги', color: '#BA68C8', desc: 'Квадрицепс, бицепс бедра, ягодицы' },
+  { name: 'Голени', color: '#81C784', desc: 'Икроножные мышцы' },
+  { name: 'Руки', color: '#FF6B35', desc: 'Бицепс, трицепс, предплечья' },
+];
+
+const INFO_EXERCISES = [
+  { id: 'info_squat', title: 'Приседания со штангой', icon: '🦵', muscle: 'Ноги',
+    steps: ['Поставьте стопы чуть шире плеч, носки слегка развёрнуты.','Сведите лопатки, штанга лежит на трапециях (не на шее).','На вдохе приседайте, отводя таз назад, колени идут по направлению стоп.','Опускайтесь до параллели бёдер с полом или чуть ниже, сохраняя прогиб в пояснице.','На выдохе вставайте, отталкиваясь пятками.'],
+    tip: 'Не заваливайте колени внутрь и не отрывайте пятки от пола.' },
+  { id: 'info_bench', title: 'Жим штанги лёжа', icon: '🏋️', muscle: 'Грудь',
+    steps: ['Лягте на скамью, стопы плотно на полу, лопатки сведены и прижаты.','Возьмите штангу чуть шире плеч, кисти над локтями.','Снимая со стоек, держите руки прямыми.','На вдохе опускайте штангу к нижней части груди, локти под углом ~45°.','На выдохе выжмите вверх и чуть назад.'],
+    tip: 'Не разводите локти в стороны на 90° — это перегружает плечи.' },
+  { id: 'info_deadlift', title: 'Становая тяга', icon: '🏋️', muscle: 'Спина',
+    steps: ['Стопы на ширине таза, гриф близко к голеням.','Наклонитесь, сгибая колени и отводя таз назад, спина прямая.','Возьмите гриф, напрягите кор и широчайшие.','На выдохе встаньте, разгибая колени и таз одновременно.','Опускайте подконтрольно, отводя таз назад.'],
+    tip: 'Никогда не округляйте поясницу под нагрузкой — это главная причина травм.' },
+  { id: 'info_lat', title: 'Тяга верхнего блока', icon: '🏋️', muscle: 'Спина',
+    steps: ['Сядьте, зафиксируйте бёдра под валиками.','Возьмите рукоять широким хватом.','На выдохе тяните к верхней части груди, сводя лопатки.','Локти идут вниз и чуть назад, не разводите их в стороны.','На вдохе медленно отпускайте.'],
+    tip: 'Не тяните за голову — это травмоопасно для плеч.' },
+  { id: 'info_row', title: 'Тяга нижнего блока', icon: '🏋️', muscle: 'Спина',
+    steps: ['Сядьте, упритесь стопами, колени чуть согнуты.','Возьмите рукоять, спина прямая, корпус почти вертикально.','На выдохе тяните к поясу, сводя лопатки.','Локти идут вдоль корпуса, не разводите в стороны.','На вдохе медленно возвращайте.'],
+    tip: 'Не раскачивайте корпус — работает спина, а не инерция.' },
+  { id: 'info_legpress', title: 'Жим ногами', icon: '🦵', muscle: 'Ноги',
+    steps: ['Сядьте, спина и таз плотно прижаты к сиденью.','Поставьте стопы на платформу на ширине плеч.','Снимите платформу со стопоров.','На вдохе опускайте платформу, сгибая колени к груди (но не до отрыва таза).','На выдохе выжмите, не блокируя колени в верхней точке.'],
+    tip: 'Никогда не выпрямляйте колени до конца под нагрузкой — это опасно для суставов.' },
+  { id: 'info_curl', title: 'Подъём на бицепс', icon: '💪', muscle: 'Руки',
+    steps: ['Встаньте прямо, гантели/штанга в опущенных руках.','Локти прижаты к корпусу и неподвижны.','На выдохе сгибайте руки, поднимая снаряд к плечам.','В верхней точке сожмите бицепс на секунду.','На вдохе медленно опускайте, полностью разгибая.'],
+    tip: 'Не раскачивайте корпус и не помогайте плечами — работает только бицепс.' },
+  { id: 'info_plank', title: 'Планка', icon: '🧘', muscle: 'Пресс',
+    steps: ['Лягте на живот, упритесь предплечьями и носками стоп.','Локти под плечами, предплечья параллельны.','Поднимите тело так, чтобы голова-таз-пятки были на одной линии.','Напрягите пресс и ягодицы, не прогибайте поясницу.','Дышите ровно, держите до усталости.'],
+    tip: 'Не задерживайте дыхание и не опускайте таз — держите линию.' },
+  { id: 'info_pullup', title: 'Подтягивания', icon: '💪', muscle: 'Спина',
+    steps: ['Возьмитесь за перекладину широким хватом.','Вися, сведите лопатки и напрягите кор.','На выдохе подтягивайтесь, пока подбородок не окажется над перекладиной.','Локти идут вниз и назад.','На вдохе медленно опускайтесь до полного выпрямления.'],
+    tip: 'Не помогайте ногами (кипинг) — если тяжело, используйте резинку.' },
+  { id: 'info_shoulderpress', title: 'Жим стоя (штанга)', icon: '💪', muscle: 'Плечи',
+    steps: ['Встаньте, стопы на ширине плеч, штанга на груди.','Хват чуть шире плеч, локти под кистями.','На выдохе выжмите вверх над головой, не прогибая поясницу.','Голова чуть отводится назад, штанга идёт по дуге.','На вдохе опустите к груди.'],
+    tip: 'Держите пресс в напряжении, чтобы не прогибаться в пояснице.' },
+  { id: 'info_lateral', title: 'Махи гантелями в стороны', icon: '💪', muscle: 'Плечи',
+    steps: ['Встаньте прямо, гантели в опущенных руках.','Локти чуть согнуты, корпус неподвижен.','На выдохе разводите руки в стороны до уровня плеч.','В верхней точке мизинец чуть выше большого пальца.','На вдохе медленно опускайте.'],
+    tip: 'Не поднимайте выше плеч и не раскачивайте корпус.' },
+  { id: 'info_rdl', title: 'Румынская тяга', icon: '🦵', muscle: 'Ноги',
+    steps: ['Встаньте, штанга в опущенных руках, хват на ширине плеч.','Колени чуть согнуты, спина прямая.','На вдохе отводите таз назад, опуская штангу вдоль ног.','Опускайтесь до ощущения растяжения в бицепсе бедра.','На выдохе вернитесь, разгибая таз.'],
+    tip: 'Не округляйте спину и не сгибайте колени слишком сильно — это не присед.' },
+];
+
+const CATEGORY_NAMES = { free: 'Свободные веса', machine: 'Тренажёры', cardio: 'Кардио' };
+const ICON_OPTIONS = ['🏋️','💪','🦵','🏃','🚴','🚣','🤸','🔥','🦋','🪜','⏱️','🎯'];
+const PROGRAM_ICONS = ['📋','💪','🦵','🏋️','🔥','⚡','🎯','🏆','📅','⭐','🚀','🧠'];
+
+let state = loadState();
+let currentCategory = 'all';
+let currentTab = 'workouts';
+let currentExercise = null;
+let currentWorkout = null;
+let currentProgram = null;
+let pickCategory = 'all';
+let pickMode = 'workout';
+let lightTheme = false;
+let timerInterval = null;
+let timerSeconds = 90;
+let timerRemaining = 90;
+let timerRunning = false;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (!s.workouts) s.workouts = [];
+      if (!s.programs) s.programs = [];
+      if (s.lightTheme !== undefined) lightTheme = s.lightTheme;
+      return s;
+    }
+  } catch(e) {}
+  return { exercises: DEFAULT_EXERCISES.map(e => ({...e})), workouts: [], programs: [] };
+}
+function saveState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) { showToast('Ошибка сохранения'); } }
+function applyTheme() { document.body.classList.toggle('light', lightTheme); }
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+function uid() { return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function todayISO() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function fmtWorkoutDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  const base = d.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'long' });
+  if (diff === 0) return 'Сегодня, ' + base;
+  if (diff === 1) return 'Завтра, ' + base;
+  if (diff === -1) return 'Вчера, ' + base;
+  return base;
+}
+let toastTimer;
+function showToast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+function getAllPrograms() { return [...BUILTIN_PROGRAMS, ...state.programs]; }
+function findProgram(id) { return getAllPrograms().find(p => p.id === id); }
+function calc1RM(weight, reps) { if (!weight || !reps) return 0; return Math.round(weight * (1 + reps / 30) * 10) / 10; }
+
+function renderProgressChart(exId) {
+  const points = [];
+  state.workouts.forEach(w => { w.exercises.forEach(entry => { if (entry.exerciseId !== exId) return; (entry.sets || []).forEach(s => points.push({ date: w.date, weight: s.weight, ts: s.ts })); }); });
+  points.sort((a,b) => a.ts - b.ts);
+  if (points.length < 2) return null;
+  const byDate = {};
+  points.forEach(p => { if (!byDate[p.date] || p.weight > byDate[p.date]) byDate[p.date] = p.weight; });
+  const dates = Object.keys(byDate).sort();
+  const values = dates.map(d => byDate[d]);
+  if (values.length < 2) return null;
+  const maxV = Math.max(...values); const minV = Math.min(...values);
+  const range = maxV - minV || 1;
+  const pad = 30; const w = 320; const h = 160;
+  const xStep = (w - pad*2) / (dates.length - 1);
+  const pointsStr = values.map((v, i) => { const x = pad + i * xStep; const y = h - pad - ((v - minV) / range) * (h - pad*2); return { x, y, v }; });
+  const line = pointsStr.map(p => `${p.x},${p.y}`).join(' ');
+  const area = `${pad},${h-pad} ` + line + ` ${w-pad},${h-pad}`;
+  return `<div class="chart-container"><div style="font-size:14px;font-weight:600;margin-bottom:10px">Макс. вес по датам</div><svg viewBox="0 0 ${w} ${h}" class="chart-svg" preserveAspectRatio="xMidYMid meet"><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="chart-grid"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" class="chart-grid"/><polygon points="${area}" class="chart-area"/><polyline points="${line}" class="chart-line"/>${pointsStr.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4" class="chart-dot"/>`).join('')}<text x="${pad}" y="${h-10}" class="chart-label" text-anchor="start">${dates[0]}</text><text x="${w-pad}" y="${h-10}" class="chart-label" text-anchor="end">${dates[dates.length-1]}</text><text x="${pad-5}" y="${pad+4}" class="chart-label" text-anchor="end">${maxV}кг</text><text x="${pad-5}" y="${h-pad}" class="chart-label" text-anchor="end">${minV}кг</text></svg></div>`;
+}
+
+function exportData() {
+  const data = { exercises: state.exercises, workouts: state.workouts, programs: state.programs, version: 6, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'fitlog_backup_' + todayISO() + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('Резервная копия скачана ✓');
+}
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.exercises || !data.workouts) throw new Error('bad');
+      state.exercises = data.exercises; state.workouts = data.workouts; state.programs = data.programs || [];
+      saveState(); renderList(); renderWorkouts(); renderPrograms(); renderHistory(); showToast('Данные загружены ✓');
+    } catch(err) { showToast('Ошибка: неверный файл'); }
+  };
+  reader.readAsText(file);
+}
+
+function renderWorkouts() {
+  $('#pageTitle').textContent = 'Тренировки'; $('#addBtn').style.display = 'flex'; $('#chips').innerHTML = '';
+  const list = $('#list');
+  const workouts = state.workouts.slice().sort((a,b) => b.date.localeCompare(a.date));
+  if (workouts.length === 0) { list.innerHTML = `<div class="empty">Нет тренировок<br>Нажмите «+» чтобы создать<br><br>Или выберите готовую программу<br>на вкладке «Программы»</div>`; return; }
+  list.innerHTML = workouts.map(w => {
+    const exNames = w.exercises.map(e => { const ex = state.exercises.find(x => x.id === e.exerciseId); return ex ? ex.name : '?'; });
+    const program = w.programId ? findProgram(w.programId) : null;
+    return `<div class="workout-card" data-id="${w.id}"><div class="workout-date">${fmtWorkoutDate(w.date)}</div>${program ? `<div class="workout-meta" style="color:var(--accent2);margin-bottom:4px">📋 ${escapeHtml(program.name)}</div>` : ''}${w.name ? `<div class="workout-meta" style="margin-bottom:6px">${escapeHtml(w.name)}</div>` : ''}<div class="workout-meta">${w.exercises.length} упражнений</div>${exNames.length ? `<div class="workout-ex-list">${exNames.slice(0,4).map(n => `<span class="workout-ex-tag">${escapeHtml(n)}</span>`).join('')}${exNames.length > 4 ? `<span class="workout-ex-tag">+${exNames.length-4}</span>` : ''}</div>` : ''}</div>`;
+  }).join('');
+  list.querySelectorAll('.workout-card').forEach(c => { c.onclick = () => openWorkout(c.dataset.id); });
+}
+function openAddWorkout() {
+  $('#workoutDate').value = todayISO(); $('#workoutName').value = '';
+  const select = $('#workoutProgram'); const all = getAllPrograms();
+  select.innerHTML = `<option value="">— Без программы —</option>` + all.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${p.exercises.length} упр.)</option>`).join('');
+  select.value = '';
+  select.onchange = () => { const pid = select.value; if (pid) { const p = findProgram(pid); if (p && !$('#workoutName').value.trim()) $('#workoutName').value = p.name; } };
+  openSheet('sheetAddWorkout');
+}
+function createWorkout() {
+  const date = $('#workoutDate').value; if (!date) return showToast('Выберите дату');
+  const programId = $('#workoutProgram').value || null; const program = programId ? findProgram(programId) : null;
+  const workout = { id: uid(), date, name: $('#workoutName').value.trim(), programId, exercises: [], createdAt: Date.now() };
+  if (program) workout.exercises = program.exercises.map(e => ({ exerciseId: e.exerciseId, sets: [], cardio: [] }));
+  state.workouts.push(workout); saveState(); closeAll(); renderWorkouts(); showToast('Тренировка создана ✓');
+  setTimeout(() => openWorkout(workout.id), 300);
+}
+function openWorkout(id) { const w = state.workouts.find(x => x.id === id); if (!w) return; currentWorkout = w; renderWorkoutDetail(); openSheet('sheetWorkout'); }
+
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ РЕНДЕРА ТРЕНИРОВКИ
+function renderWorkoutDetail() {
+  const w = currentWorkout; if (!w) return;
+  $('#workoutTitle').textContent = fmtWorkoutDate(w.date);
+  const content = $('#workoutContent');
+  const program = w.programId ? findProgram(w.programId) : null;
+  let html = '';
+  if (program) html += `<div style="font-size:13px;color:var(--accent2);margin-bottom:6px">📋 Программа: ${escapeHtml(program.name)}</div>`;
+  if (w.name) html += `<div style="font-size:15px;color:var(--muted);margin-bottom:16px">${escapeHtml(w.name)}</div>`;
+  if (w.exercises.length === 0) { html += `<div class="empty" style="padding:30px 0">Пока нет упражнений</div>`; }
+  else {
+    w.exercises.forEach((entry, idx) => {
+      const ex = state.exercises.find(x => x.id === entry.exerciseId); if (!ex) return;
+      const isCardio = ex.category === 'cardio';
+      html += `<div style="background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="card-icon ${isCardio ? 'cardio' : ''}" style="width:40px;height:40px;font-size:20px">${ex.icon}</div>
+          <div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(ex.name)}</div><div style="font-size:12px;color:var(--muted)">${escapeHtml(ex.muscle)}</div></div>
+          <button class="set-del" data-remove="${idx}" style="width:28px;height:28px">✕</button>
+        </div>`;
+      
+      if (isCardio) {
+        const cardios = entry.cardio || [];
+        cardios.forEach((c, ci) => { html += `<div class="history-item" style="margin-bottom:8px;padding:10px 12px"><div class="history-cardio">⏱ ${c.minutes} мин · 🔥 ${c.calories} ккал</div><button class="set-del" data-delcardio="${idx}-${ci}" style="width:26px;height:26px;font-size:13px">✕</button></div>`; });
+        html += `<div class="set-input-row">
+          <input type="number" id="wc_min_${idx}" placeholder="Мин" inputmode="numeric">
+          <input type="number" id="wc_kcal_${idx}" placeholder="Ккал" inputmode="numeric">
+          <button class="btn-primary" data-addcardio="${idx}">+</button>
+        </div>`;
+      } else {
+        const sets = entry.sets || [];
+        sets.forEach((s, si) => { const est = calc1RM(s.weight, s.reps); html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)"><div style="font-size:15px"><span style="color:var(--accent);font-weight:700">${si+1}.</span> ${s.weight} кг × ${s.reps} <span style="color:var(--muted);font-size:12px">(~${est} кг 1ПМ)</span></div><button class="set-del" data-delset="${idx}-${si}" style="width:26px;height:26px;font-size:13px">✕</button></div>`; });
+        html += `<div class="set-input-row">
+          <input type="number" id="ws_w_${idx}" placeholder="Кг" step="0.5" inputmode="decimal">
+          <input type="number" id="ws_r_${idx}" placeholder="Повт" inputmode="numeric">
+          <button class="btn-primary" data-addset="${idx}">+</button>
+        </div>`;
+      }
+      html += `</div>`;
+    });
+  }
+  html += `<button class="btn-primary" id="addExToWorkout" style="margin-top:16px">+ Добавить упражнение</button><button class="btn-secondary" id="openTimer" style="margin-top:10px">⏱ Таймер отдыха</button><button class="btn-secondary" id="saveAsProgram" style="margin-top:10px">💾 Сохранить как программу</button><button class="btn-secondary" id="deleteWorkout" style="color:var(--danger)">Удалить тренировку</button>`;
+  content.innerHTML = html; bindWorkoutEvents(w);
+}
+function bindWorkoutEvents(w) {
+  $('#addExToWorkout').onclick = () => { pickMode = 'workout'; openPickExercise(); };
+  $('#openTimer').onclick = () => openSheet('sheetTimer');
+  $('#saveAsProgram').onclick = () => { if (w.exercises.length === 0) return showToast('Сначала добавьте упражнения'); const name = prompt('Название программы:', w.name || 'Моя программа'); if (!name) return; state.programs.push({ id: uid(), name: name.trim(), desc: '', icon: '📋', exercises: w.exercises.map(e => ({ exerciseId: e.exerciseId })), createdAt: Date.now() }); saveState(); showToast('Программа сохранена ✓'); };
+  $('#deleteWorkout').onclick = () => { if (confirm('Удалить тренировку?')) { state.workouts = state.workouts.filter(x => x.id !== w.id); saveState(); closeAll(); renderWorkouts(); showToast('Удалено'); } };
+  $$('[data-remove]').forEach(b => { b.onclick = () => { w.exercises.splice(parseInt(b.dataset.remove), 1); saveState(); renderWorkoutDetail(); }; });
+  $$('[data-addset]').forEach(b => { b.onclick = () => { const idx = parseInt(b.dataset.addset); const weight = parseFloat($(`#ws_w_${idx}`).value); const reps = parseInt($(`#ws_r_${idx}`).value); if (isNaN(weight) || weight < 0) return showToast('Укажите вес'); if (!reps || reps <= 0) return showToast('Укажите повторения'); if (!w.exercises[idx].sets) w.exercises[idx].sets = []; w.exercises[idx].sets.push({ weight, reps, ts: Date.now() }); saveState(); showToast('Подход добавлен ✓'); renderWorkoutDetail(); }; });
+  $$('[data-delset]').forEach(b => { b.onclick = () => { const [idx, si] = b.dataset.delset.split('-').map(Number); w.exercises[idx].sets.splice(si, 1); saveState(); renderWorkoutDetail(); }; });
+  $$('[data-addcardio]').forEach(b => { b.onclick = () => { const idx = parseInt(b.dataset.addcardio); const min = parseInt($(`#wc_min_${idx}`).value); const kcal = parseInt($(`#wc_kcal_${idx}`).value); if (!min || min <= 0) return showToast('Укажите время'); if (isNaN(kcal) || kcal < 0) return showToast('Укажите ккал'); if (!w.exercises[idx].cardio) w.exercises[idx].cardio = []; w.exercises[idx].cardio.push({ minutes: min, calories: kcal, ts: Date.now() }); saveState(); showToast('Записано ✓'); renderWorkoutDetail(); }; });
+  $$('[data-delcardio]').forEach(b => { b.onclick = () => { const [idx, ci] = b.dataset.delcardio.split('-').map(Number); w.exercises[idx].cardio.splice(ci, 1); saveState(); renderWorkoutDetail(); }; });
+}
+function initTimer() {
+  $$('#timerPresets button').forEach(b => { b.onclick = () => { $$('#timerPresets button').forEach(x => x.classList.remove('active')); b.classList.add('active'); timerSeconds = parseInt(b.dataset.sec); timerRemaining = timerSeconds; updateTimerDisplay(); if (timerRunning) { clearInterval(timerInterval); timerRunning = false; $('#timerStart').textContent = 'Старт'; } }; });
+  $('#timerStart').onclick = () => {
+    if (timerRunning) { clearInterval(timerInterval); timerRunning = false; $('#timerStart').textContent = 'Продолжить'; }
+    else { timerRunning = true; $('#timerStart').textContent = 'Пауза'; timerInterval = setInterval(() => { timerRemaining--; updateTimerDisplay(); if (timerRemaining <= 0) { clearInterval(timerInterval); timerRunning = false; $('#timerStart').textContent = 'Старт'; showToast('⏱ Отдых закончен!'); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } }, 1000); }
+  };
+  $('#timerReset').onclick = () => { clearInterval(timerInterval); timerRunning = false; timerRemaining = timerSeconds; updateTimerDisplay(); $('#timerStart').textContent = 'Старт'; };
+  updateTimerDisplay();
+}
+function updateTimerDisplay() { const m = Math.floor(timerRemaining / 60); const s = timerRemaining % 60; $('#timerDisplay').textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'); }
+
+function renderPrograms() {
+  $('#pageTitle').textContent = 'Программы'; $('#addBtn').style.display = 'flex'; $('#chips').innerHTML = '';
+  const list = $('#list');
+  let html = `<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Готовые сплиты</div>`;
+  html += BUILTIN_PROGRAMS.map(p => renderProgramCard(p)).join('');
+  if (state.programs.length > 0) { html += `<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 10px">Мои программы</div>`; html += state.programs.map(p => renderProgramCard(p)).join(''); }
+  list.innerHTML = html;
+  list.querySelectorAll('[data-start]').forEach(b => { b.onclick = (e) => { e.stopPropagation(); startWorkoutFromProgram(b.dataset.start); }; });
+  list.querySelectorAll('[data-edit]').forEach(b => { b.onclick = (e) => { e.stopPropagation(); openProgram(b.dataset.edit); }; });
+}
+function renderProgramCard(p) {
+  const exNames = p.exercises.map(e => { const ex = state.exercises.find(x => x.id === e.exerciseId); return ex ? ex.name : '?'; });
+  return `<div class="program-card ${p.builtin ? 'builtin' : ''}" data-id="${p.id}"><div class="program-title">${p.icon || '📋'} ${escapeHtml(p.name)} ${p.builtin ? '<span class="badge program">готовая</span>' : ''}</div>${p.desc ? `<div class="program-meta">${escapeHtml(p.desc)}</div>` : ''}<div class="program-meta">${p.exercises.length} упражнений</div>${exNames.length ? `<div class="workout-ex-list">${exNames.slice(0,4).map(n => `<span class="workout-ex-tag">${escapeHtml(n)}</span>`).join('')}${exNames.length > 4 ? `<span class="workout-ex-tag">+${exNames.length-4}</span>` : ''}</div>` : ''}<div class="program-actions"><button class="program-start" data-start="${p.id}">▶ Начать</button><button class="program-edit" data-edit="${p.id}">${p.builtin ? 'Посмотреть' : 'Изменить'}</button></div></div>`;
+}
+function startWorkoutFromProgram(pid) { const p = findProgram(pid); if (!p) return; openAddWorkout(); setTimeout(() => { $('#workoutProgram').value = pid; if (!$('#workoutName').value.trim()) $('#workoutName').value = p.name; }, 100); }
+function openAddProgram() { $('#programName').value = ''; $('#programDesc').value = ''; newProgramIcon = '📋'; renderProgramIcons(); $('#saveProgram').disabled = true; openSheet('sheetAddProgram'); setTimeout(() => $('#programName').focus(), 300); }
+let newProgramIcon = '📋';
+function renderProgramIcons() { const grid = $('#programIcons'); grid.innerHTML = PROGRAM_ICONS.map(ic => `<div class="icon-opt ${ic === newProgramIcon ? 'selected' : ''}" data-icon="${ic}">${ic}</div>`).join(''); grid.querySelectorAll('.icon-opt').forEach(el => { el.onclick = () => { newProgramIcon = el.dataset.icon; renderProgramIcons(); }; }); }
+function bindProgramForm() {
+  $('#programName').oninput = () => { $('#saveProgram').disabled = !$('#programName').value.trim(); };
+  $('#saveProgram').onclick = () => { const name = $('#programName').value.trim(); if (!name) return; const program = { id: uid(), name, desc: $('#programDesc').value.trim(), icon: newProgramIcon, exercises: [], createdAt: Date.now() }; state.programs.push(program); saveState(); closeAll(); renderPrograms(); showToast('Программа создана ✓'); setTimeout(() => openProgram(program.id), 300); };
+}
+function openProgram(pid) { const p = findProgram(pid); if (!p) return; currentProgram = p; $('#programTitle').textContent = p.name; renderProgramDetail(); openSheet('sheetProgram'); }
+function renderProgramDetail() {
+  const p = currentProgram; if (!p) return;
+  const content = $('#programContent');
+  let html = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px"><div style="font-size:36px">${p.icon || '📋'}</div><div style="flex:1"><div style="font-weight:700;font-size:17px">${escapeHtml(p.name)}</div>${p.desc ? `<div style="color:var(--muted);font-size:13px;margin-top:2px">${escapeHtml(p.desc)}</div>` : ''}</div></div><button class="btn-primary" id="startFromProgram" style="margin-bottom:16px">▶ Начать тренировку по программе</button>`;
+  html += `<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Упражнения</div>`;
+  if (p.exercises.length === 0) { html += `<div class="empty" style="padding:20px 0">Пока нет упражнений</div>`; }
+  else { p.exercises.forEach((entry, idx) => { const ex = state.exercises.find(x => x.id === entry.exerciseId); if (!ex) return; html += `<div class="history-item" style="padding:12px 14px"><div style="display:flex;align-items:center;gap:10px;flex:1"><span style="font-size:20px">${ex.icon}</span><div><div style="font-weight:600;font-size:15px">${escapeHtml(ex.name)}</div><div style="font-size:12px;color:var(--muted)">${escapeHtml(ex.muscle)}</div></div></div>${p.builtin ? '' : `<button class="set-del" data-prog-remove="${idx}" style="width:28px;height:28px">✕</button>`}</div>`; }); }
+  if (!p.builtin) { html += `<button class="btn-primary" id="addExToProgram" style="margin-top:12px">+ Добавить упражнение</button><button class="btn-secondary" id="deleteProgram" style="color:var(--danger)">Удалить программу</button>`; }
+  else { html += `<div style="text-align:center;color:var(--muted);font-size:13px;margin-top:16px">Это готовая программа — можно только использовать, но не изменять</div>`; }
+  content.innerHTML = html;
+  $('#startFromProgram').onclick = () => { closeAll(); setTimeout(() => startWorkoutFromProgram(p.id), 300); };
+  if (!p.builtin) {
+    $('#addExToProgram').onclick = () => { pickMode = 'program'; openPickExercise(); };
+    $('#deleteProgram').onclick = () => { if (confirm('Удалить программу?')) { state.programs = state.programs.filter(x => x.id !== p.id); saveState(); closeAll(); renderPrograms(); showToast('Удалено'); } };
+    $$('[data-prog-remove]').forEach(b => { b.onclick = () => { p.exercises.splice(parseInt(b.dataset.progRemove), 1); saveState(); renderProgramDetail(); }; });
+  }
+}
+
+function openPickExercise() { pickCategory = 'all'; $('#pickSearch').value = ''; renderPickChips(); renderPickList(); $('#pickSearch').oninput = () => renderPickList(); $('#createExFromPick').onclick = () => { closeAll(); setTimeout(() => openAddExercise(true), 300); }; openSheet('sheetPickExercise'); }
+function renderPickChips() {
+  const chips = $('#pickChips');
+  const cats = [{ val: 'all', label: 'Все' },{ val: 'free', label: 'Свободные' },{ val: 'machine', label: 'Тренажёры' },{ val: 'cardio', label: 'Кардио' }];
+  chips.innerHTML = cats.map(c => `<button class="chip ${pickCategory === c.val ? 'active' : ''}" data-cat="${c.val}">${c.label}</button>`).join('');
+  chips.querySelectorAll('.chip').forEach(btn => { btn.onclick = () => { pickCategory = btn.dataset.cat; renderPickChips(); renderPickList(); }; });
+}
+function renderPickList() {
+  const list = $('#pickList'); const q = $('#pickSearch').value.toLowerCase().trim();
+  let items = state.exercises;
+  if (pickCategory !== 'all') items = items.filter(e => e.category === pickCategory);
+  if (q) items = items.filter(e => e.name.toLowerCase().includes(q) || e.muscle.toLowerCase().includes(q));
+  let addedIds = [];
+  if (pickMode === 'workout' && currentWorkout) addedIds = currentWorkout.exercises.map(e => e.exerciseId);
+  else if (pickMode === 'program' && currentProgram) addedIds = currentProgram.exercises.map(e => e.exerciseId);
+  if (items.length === 0) { list.innerHTML = `<div class="empty" style="padding:30px 0">Ничего не найдено</div>`; return; }
+  list.innerHTML = items.map(ex => { const isAdded = addedIds.includes(ex.id); return `<div class="picker-item ${isAdded ? 'selected' : ''}" data-id="${ex.id}" style="${isAdded ? 'opacity:0.5' : ''}"><span style="font-size:22px">${ex.icon}</span><div style="flex:1"><div style="font-weight:600">${escapeHtml(ex.name)}</div><div style="font-size:12px;color:var(--muted)">${escapeHtml(ex.muscle)} · ${CATEGORY_NAMES[ex.category]}</div></div>${isAdded ? '<span style="font-size:12px;color:var(--accent);font-weight:700">✓</span>' : ''}</div>`; }).join('');
+  list.querySelectorAll('.picker-item').forEach(item => { item.onclick = () => { if (addedIds.includes(item.dataset.id)) { showToast('Уже добавлено'); return; } if (pickMode === 'workout') addExerciseToWorkout(item.dataset.id); else addExerciseToProgram(item.dataset.id); }; });
+}
+function addExerciseToWorkout(exId) { if (!currentWorkout) return; const ex = state.exercises.find(x => x.id === exId); if (!ex) return; if (currentWorkout.exercises.find(e => e.exerciseId === exId)) return showToast('Уже добавлено'); currentWorkout.exercises.push({ exerciseId: exId, sets: [], cardio: [] }); saveState(); closeAll(); setTimeout(() => { renderWorkoutDetail(); openSheet('sheetWorkout'); showToast('Упражнение добавлено ✓'); }, 200); }
+function addExerciseToProgram(exId) { if (!currentProgram || currentProgram.builtin) return; const ex = state.exercises.find(x => x.id === exId); if (!ex) return; if (currentProgram.exercises.find(e => e.exerciseId === exId)) return showToast('Уже добавлено'); currentProgram.exercises.push({ exerciseId: exId }); saveState(); closeAll(); setTimeout(() => { renderProgramDetail(); openSheet('sheetProgram'); showToast('Упражнение добавлено ✓'); }, 200); }
+
+function renderExercises() { $('#pageTitle').textContent = 'Упражнения'; $('#addBtn').style.display = 'flex'; renderChips(); renderList(); }
+function renderChips() {
+  const chips = $('#chips');
+  const cats = [{ val: 'all', label: 'Все' },{ val: 'free', label: 'Свободные' },{ val: 'machine', label: 'Тренажёры' },{ val: 'cardio', label: 'Кардио' }];
+  chips.innerHTML = cats.map(c => `<button class="chip ${currentCategory === c.val ? 'active' : ''}" data-cat="${c.val}">${c.label}</button>`).join('');
+  chips.querySelectorAll('.chip').forEach(btn => { btn.onclick = () => { currentCategory = btn.dataset.cat; renderChips(); renderList(); }; });
+}
+function renderList() {
+  const list = $('#list');
+  let items = state.exercises;
+  if (currentCategory !== 'all') items = items.filter(e => e.category === currentCategory);
+  if (items.length === 0) { list.innerHTML = `<div class="empty">Пока нет упражнений<br>Нажмите «+» чтобы добавить</div>`; return; }
+  list.innerHTML = items.map(ex => { const isCardio = ex.category === 'cardio'; const sub = CATEGORY_NAMES[ex.category] + ' · ' + ex.muscle; return `<div class="card" data-id="${ex.id}"><div class="card-icon ${isCardio ? 'cardio' : ''}">${ex.icon}</div><div class="card-body"><div class="card-title">${escapeHtml(ex.name)}${ex.custom ? '<span class="badge">своё</span>' : ''}</div><div class="card-sub">${escapeHtml(sub)}</div></div><div class="chevron">›</div></div>`; }).join('');
+  list.querySelectorAll('.card').forEach(card => { card.onclick = () => openDetail(card.dataset.id); });
+}
+function openDetail(id) { const ex = state.exercises.find(e => e.id === id); if (!ex) return; currentExercise = ex; $('#detailTitle').textContent = ex.name; renderDetail(); openSheet('sheetDetail'); }
+function renderDetail() {
+  const ex = currentExercise; if (!ex) return;
+  const content = $('#detailContent'); const isCardio = ex.category === 'cardio';
+  let html = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px"><div class="card-icon ${isCardio ? 'cardio' : ''}" style="width:56px;height:56px;font-size:28px">${ex.icon}</div><div><div style="font-weight:600">${escapeHtml(ex.muscle)}</div><div style="color:var(--muted);font-size:13px">${CATEGORY_NAMES[ex.category]}</div></div></div>`;
+  if (ex.notes) html += `<div style="background:var(--card);border-radius:12px;padding:12px;margin-bottom:16px;font-size:14px;color:var(--muted)">${escapeHtml(ex.notes)}</div>`;
+  if (!isCardio) { const chart = renderProgressChart(ex.id); if (chart) html += chart; }
+  const allSets = [];
+  state.workouts.forEach(w => { w.exercises.forEach(entry => { if (entry.exerciseId !== ex.id) return; (entry.sets || []).forEach(s => allSets.push(s)); }); });
+  if (allSets.length > 0 && !isCardio) { const maxWeight = Math.max(...allSets.map(s => s.weight)); const best1RM = Math.max(...allSets.map(s => calc1RM(s.weight, s.reps))); html += `<div class="stat-card" style="display:flex;gap:16px"><div style="flex:1"><div class="stat-label">🏆 Лучший вес</div><div class="stat-value" style="font-size:22px">${maxWeight} кг</div></div><div style="flex:1"><div class="stat-label">💪 Расчётный 1ПМ</div><div class="stat-value" style="font-size:22px">${best1RM} кг</div></div></div>`; }
+  html += `<div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">История из тренировок</div>`;
+  const allRecords = [];
+  state.workouts.forEach(w => { w.exercises.forEach(entry => { if (entry.exerciseId !== ex.id) return; (entry.sets || []).forEach(s => allRecords.push({ type:'set', s, date: w.date, ts: s.ts })); (entry.cardio || []).forEach(c => allRecords.push({ type:'cardio', c, date: w.date, ts: c.ts })); }); });
+  allRecords.sort((a,b) => b.ts - a.ts);
+  if (allRecords.length === 0) html += `<div style="color:var(--muted);font-size:14px;text-align:center;padding:20px">Пока нет записей</div>`;
+  else { allRecords.slice(0, 30).forEach(r => { if (r.type === 'set') html += `<div class="history-item"><div><div class="history-value">${r.s.weight} кг × ${r.s.reps}</div><div class="history-date">${fmtWorkoutDate(r.date)}</div></div></div>`; else html += `<div class="history-item"><div><div class="history-cardio">⏱ ${r.c.minutes} мин · 🔥 ${r.c.calories} ккал</div><div class="history-date">${fmtWorkoutDate(r.date)}</div></div></div>`; }); }
+  if (ex.custom) html += `<button class="btn-secondary" id="editEx" style="margin-top:20px">✏️ Редактировать</button><button class="btn-secondary" id="deleteEx" style="color:var(--danger)">Удалить упражнение</button>`;
+  content.innerHTML = html;
+  if (ex.custom) {
+    $('#editEx').onclick = () => { $('#editExName').value = ex.name; $('#editExNotes').value = ex.notes || ''; closeAll(); setTimeout(() => openSheet('sheetEditExercise'), 300); };
+    $('#saveEditedExercise').onclick = () => { ex.name = $('#editExName').value.trim() || ex.name; ex.notes = $('#editExNotes').value.trim(); saveState(); closeAll(); showToast('Сохранено ✓'); setTimeout(() => openDetail(ex.id), 300); };
+    $('#deleteEx').onclick = () => { if (confirm('Удалить упражнение?')) { state.exercises = state.exercises.filter(e => e.id !== ex.id); saveState(); closeAll(); renderList(); showToast('Удалено'); } };
+  }
+}
+
+function renderHistory() {
+  $('#pageTitle').textContent = 'История'; $('#addBtn').style.display = 'none'; $('#chips').innerHTML = '';
+  const list = $('#list');
+  const allRecords = [];
+  state.workouts.forEach(w => { w.exercises.forEach(entry => { const ex = state.exercises.find(x => x.id === entry.exerciseId); if (!ex) return; (entry.sets || []).forEach(s => allRecords.push({ type:'set', ex, s, date: w.date, ts: s.ts })); (entry.cardio || []).forEach(c => allRecords.push({ type:'cardio', ex, c, date: w.date, ts: c.ts })); }); });
+  allRecords.sort((a,b) => b.ts - a.ts);
+  if (allRecords.length === 0) { list.innerHTML = `<div class="empty">История пуста<br>Создайте тренировку и добавьте упражнения</div>`; return; }
+  const totalWorkouts = state.workouts.length; const totalSets = allRecords.filter(r => r.type === 'set').length; const totalCalories = allRecords.filter(r => r.type === 'cardio').reduce((a,r) => a + r.c.calories, 0);
+  let html = `<div class="stat-card"><div class="stat-label">Всего тренировок</div><div class="stat-value">${totalWorkouts}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"><div class="stat-card" style="margin:0"><div class="stat-label">Подходов</div><div class="stat-value" style="font-size:22px">${totalSets}</div></div><div class="stat-card" style="margin:0"><div class="stat-label">Ккал</div><div class="stat-value" style="font-size:22px">${totalCalories}</div></div></div>`;
+  html += `<div style="display:flex;gap:10px;margin-bottom:16px"><button class="btn-secondary" id="exportBtn" style="margin:0">📤 Экспорт</button><label class="btn-secondary" style="margin:0;text-align:center;cursor:pointer;display:flex;align-items:center;justify-content:center">📥 Импорт<input type="file" id="importInput" accept=".json" style="display:none"></label></div>`;
+  allRecords.slice(0, 50).forEach(r => { if (r.type === 'set') html += `<div class="history-item"><div><div class="history-value">${escapeHtml(r.ex.name)}</div><div class="history-date">${fmtWorkoutDate(r.date)}</div></div><div class="history-value">${r.s.weight}кг × ${r.s.reps}</div></div>`; else html += `<div class="history-item"><div><div class="history-value">${escapeHtml(r.ex.name)}</div><div class="history-date">${fmtWorkoutDate(r.date)}</div></div><div class="history-cardio">⏱ ${r.c.minutes}м · 🔥 ${r.c.calories}</div></div>`; });
+  list.innerHTML = html;
+  $('#exportBtn').onclick = exportData;
+  $('#importInput').onchange = (e) => { if (e.target.files[0]) importData(e.target.files[0]); };
+}
+
+function renderInfo() {
+  $('#pageTitle').textContent = 'Инфо'; $('#addBtn').style.display = 'none'; $('#chips').innerHTML = '';
+  const list = $('#list');
+  let html = `<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">🧬</div><div style="font-size:15px;color:var(--muted);line-height:1.5">Анатомия мышц и техника упражнений</div></div>`;
+  html += `<div class="info-section"><h3>🧬 Анатомия мышц</h3><div class="anatomy-wrap">${ANATOMY_FRONT}${ANATOMY_BACK}</div><div class="anatomy-legend">${MUSCLE_LEGEND.map(m => `<div class="anatomy-legend-item"><span class="anatomy-legend-color" style="background:${m.color}"></span><div><div style="font-weight:600">${m.name}</div><div style="font-size:10px;color:var(--muted)">${m.desc}</div></div></div>`).join('')}</div></div>`;
+  const groups = {};
+  INFO_EXERCISES.forEach(e => { if (!groups[e.muscle]) groups[e.muscle] = []; groups[e.muscle].push(e); });
+  Object.keys(groups).forEach(muscle => {
+    html += `<div class="info-section"><h3>💪 ${muscle}</h3>`;
+    groups[muscle].forEach(info => { html += `<div class="info-card"><div class="info-card-title">${info.icon} ${escapeHtml(info.title)}</div><div class="info-card-desc">Ключевые шаги:</div><ol class="info-steps">${info.steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ol><div class="info-tip">💡 ${escapeHtml(info.tip)}</div></div>`; });
+    html += `</div>`;
+  });
+  html += `<div style="text-align:center;color:var(--muted);font-size:12px;padding:20px">Описания упрощённые. Для точной техники обратитесь к тренеру.</div>`;
+  list.innerHTML = html;
+}
+
+let newExCategory = 'free'; let newExMuscle = 'Грудь'; let newExIcon = '🏋️';
+function openAddExercise() { $('#exName').value = ''; $('#exNotes').value = ''; newExCategory = 'free'; newExMuscle = 'Грудь'; newExIcon = '🏋️'; updateAddFormUI(); openSheet('sheetAddExercise'); setTimeout(() => $('#exName').focus(), 300); }
+function updateAddFormUI() {
+  $$('#exCategory button').forEach(b => b.classList.toggle('active', b.dataset.val === newExCategory));
+  $('#muscleField').style.display = newExCategory === 'cardio' ? 'none' : 'block';
+  const grid = $('#exIcons'); grid.innerHTML = ICON_OPTIONS.map(ic => `<div class="icon-opt ${ic === newExIcon ? 'selected' : ''}" data-icon="${ic}">${ic}</div>`).join('');
+  grid.querySelectorAll('.icon-opt').forEach(el => { el.onclick = () => { newExIcon = el.dataset.icon; updateAddFormUI(); }; });
+  $('#saveExercise').disabled = !$('#exName').value.trim();
+}
+function bindAddForm() {
+  $('#exName').oninput = () => { $('#saveExercise').disabled = !$('#exName').value.trim(); };
+  $('#exCategory').onclick = (e) => { if (e.target.tagName === 'BUTTON') { newExCategory = e.target.dataset.val; if (newExCategory === 'cardio') newExIcon = '🏃'; else if (newExCategory === 'machine') newExIcon = '🏋️'; updateAddFormUI(); } };
+  $('#exMuscle').onclick = (e) => { if (e.target.tagName === 'BUTTON') { newExMuscle = e.target.dataset.val; $$('#exMuscle button').forEach(b => b.classList.toggle('active', b.dataset.val === newExMuscle)); } };
+  $('#saveExercise').onclick = () => { const name = $('#exName').value.trim(); if (!name) return; const ex = { id: uid(), name, category: newExCategory, muscle: newExCategory === 'cardio' ? 'Всё тело' : newExMuscle, icon: newExIcon, custom: true, notes: $('#exNotes').value.trim() || '', sets: [], cardio: [] }; state.exercises.push(ex); saveState(); closeAll(); showToast('Упражнение добавлено ✓'); if (pickMode === 'program' && currentProgram) setTimeout(() => addExerciseToProgram(ex.id), 300); else if (currentWorkout) setTimeout(() => addExerciseToWorkout(ex.id), 300); else renderList(); };
+}
+
+function openSheet(id) { $('#overlay').classList.add('show'); $('#' + id).classList.add('show'); }
+function closeAll() { $('#overlay').classList.remove('show'); $$('.sheet').forEach(s => s.classList.remove('show')); }
+
+function switchTab(tab) {
+  currentTab = tab;
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  if (tab === 'workouts') renderWorkouts();
+  else if (tab === 'programs') renderPrograms();
+  else if (tab === 'exercises') renderExercises();
+  else if (tab === 'info') renderInfo();
+  else renderHistory();
+}
+function toggleTheme() { lightTheme = !lightTheme; applyTheme(); saveState(); }
+
+function init() {
+  applyTheme(); bindAddForm(); bindProgramForm(); initTimer();
+  $('#addBtn').onclick = () => { if (currentTab === 'exercises') openAddExercise(); else if (currentTab === 'programs') openAddProgram(); else openAddWorkout(); };
+  $('#overlay').onclick = closeAll;
+  $$('[data-close]').forEach(b => b.onclick = closeAll);
+  $$('.tab').forEach(tab => tab.onclick = () => switchTab(tab.dataset.tab));
+  $('#createWorkout').onclick = createWorkout;
+  $('#pageTitle').onclick = toggleTheme;
+  switchTab('workouts');
+}
+init();
+</script>
+</body>
+</html>
